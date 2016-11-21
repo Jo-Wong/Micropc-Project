@@ -44,7 +44,7 @@
 #define GPIO_BASE               (BCM2836_PERI_BASE + 0x200000)
 #define TIME_BASE		(BCM2836_PERI_BASE + 0x3000)
 #define SPI_BASE		(BCM2836_PERI_BASE + 0x204000)
-#define I2C_BASE		(BCM2836_PERI_BASE + 0x205000)
+#define I2C_BASE		(BCM2836_PERI_BASE + 0x804000)
 #define BLOCK_SIZE (4*1024)
 #define TIME_BLOCK_SIZE	34
 #define SPI_BLOCK_SIZE 24
@@ -160,6 +160,10 @@ void delayMicrosecs(unsigned int micros) {
 	while(!(sys_timer[0] & 0b0100));
 }
 
+int getTime() {
+	return sys_timer[1];
+}
+
 void spiInit(int frequency, int settings) {
 	pinMode(8, ALT0);
 	pinMode(9, ALT0);
@@ -208,9 +212,30 @@ void i2cClearBits() {
 	I2CSTAT[0] &= 0x00000302;
 }
 
+int i2cPowerOn(char subadr, char value) {
+	printf("%d\n", subadr);
+	printf("%d\n", value);
+	I2CDLEN[0] = 2;
+	I2CCTRL[0] = 0x00008000;
+	I2CFIFO[0] = subadr;
+	I2CFIFO[0] = value;
+	I2CCTRL[0] = 0x00008080;
+
+/*	while(!(I2CSTAT[0] & 0x00000001)) {
+		if(I2CSTAT[0] & 0x00000002) break;
+	}
+
+	if((I2CSTAT[0] & 0x00000001)) {
+		I2CFIFO[0] = value;
+	}
+*/
+	printf("%d\n", I2CSTAT[0]);
+	return 1;
+}
+
 int i2cRead(char subadr, char * data, short numBytes) {
 	int i = 0;
-	int i2c_byte_wait_us = 9*1000000/I2CCLK[0];
+	int i2c_byte_wait_us = ((float)I2CCLK[0]/250000000)*9*1000000;
 
 	//Set data length = 1
 	I2CDLEN[0] = 1;
@@ -220,22 +245,26 @@ int i2cRead(char subadr, char * data, short numBytes) {
 	I2CFIFO[0] = subadr;
 	// Enable BSC and ST: BSC necessary?
 	I2CCTRL[0] = 0x00008080;
+
+
 	// Poll TA until active
-	while(!(I2CSTAT[0] & 0x00000001));
-//	printf("done polldata\n");
+	while(!(I2CSTAT[0] & 0x00000001)) {
+		//printf("entered\n");
+		if(I2CSTAT[0] & 0x00000002)
+			break;
+		//printf("polling\n");
+	}
 	// Set data length = 6 bytes
 	I2CDLEN[0] = numBytes;
-	printf("len = %d", I2CDLEN[0]);
 	// Change to read, enable BSC and ST: BSC necessary?
-	I2CCTRL[0] &= 0x00008081;
+	I2CCTRL[0] = 0x00008081;
 	// Wait for bytes to start coming back
 	delayMicrosecs(i2c_byte_wait_us * 3);
-	printf("len = %d", I2CDLEN[0]);
-//	printf("done delay\n");
 	// Collect data until DONE
-	while(!(I2CSTAT[0] & 0x00000002)) {
-		if(i < numBytes && (I2CSTAT[0] & 0x00000020)) {
-			data[i] = I2CFIFO[0];
+/*	while(!(I2CSTAT[0] & 0x00000002)) {
+		while(i < numBytes && (I2CSTAT[0] & 0x00000020)) {
+			char c = *I2CFIFO;
+			data[i] = c;
 			i++;
 		}
 		if(I2CSTAT[0] & 0x00000100) {
@@ -245,14 +274,22 @@ int i2cRead(char subadr, char * data, short numBytes) {
 			printf("hold scl too long\n");
 		}
 	}
-//	printf("DONE\n");
 	// Collect remaining number of bytes after DONE
 	while(i < numBytes && (I2CSTAT[0] & 0x00000020)) {
-		data[i] = I2CFIFO[0];
+		char c = *I2CFIFO;
+		data[i] = c;
 		i++;
+	}/*
+*/	while(i < numBytes) {
+		if(I2CSTAT[0] & 0x00000020) {
+			//data[i] = I2CFIFO[0];
+			char c = *I2CFIFO;
+			data[i] = c;
+			i++;
+		}
 	}
-//	printf("counter = %d\n", i);
-//	printf("return\n");
+	int result = I2CSTAT[0];
+	printf("%d\n", result);
 	I2CSTAT[0] &= 0x00000002;
 	return 1;
 }
