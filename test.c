@@ -1,0 +1,61 @@
+// test.c
+// Send 4 8-bit numbers over SPI
+
+////////////////////////////////////////////////
+// #includes
+////////////////////////////////////////////////
+
+#include <stdio.h>
+#include "easypio.h"
+
+////////////////////////////////////////////////
+// Constants
+////////////////////////////////////////////////
+#define RESET_FPGA 21
+#define SPI_SETTINGS  (1<<25) // LEN_LONG
+////////////////////////////////////////////////
+// Globals
+////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////
+// Function Prototypes
+////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////
+// Main
+////////////////////////////////////////////////
+
+void main(void) {
+	char motor_numbers[4] = {0, 50, 150, 250};
+	
+	pioInit();
+	spiInit(256000, SPI_SETTINGS);
+	pinMode(RESET_FPGA, 1); //set to output
+		
+	writeOut(motor_numbers);
+}
+
+////////////////////////////////////////////////
+// Functions
+////////////////////////////////////////////////
+
+char spiSendReceive32(uint32_t send){
+    SPI0FIFO = send;            // send data to slave
+    while(!SPI0CSbits.DONE);    // wait until SPI transmission complete
+    return SPI0FIFO;            // return received data
+}
+
+void writeOut(char* motor_numbers)
+{
+  // Send pulse per write 
+  digitalWrite(RESET_FPGA, 0);
+  digitalWrite(RESET_FPGA, 1);
+  digitalWrite(RESET_FPGA, 0);
+  
+  for(int i=0; i<4, ++i)
+  {
+	spiSendReceive(motor_numbers[i]);
+  }
+}
