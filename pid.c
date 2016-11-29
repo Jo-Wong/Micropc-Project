@@ -55,7 +55,7 @@ typedef struct {
 #define CONSTANT3	1/(4*b) 	//1/4b
 
 #define GRAVITY		9.80665f
-#define UPDATE_PERIOD	0.1f 	//100ms
+#define UPDATE_PERIOD	100000f // in us
 #define MASS		1.1141f		// in kg
 #define MAX_RPM		35000 		// 12 pole motor
 
@@ -107,9 +107,9 @@ void main(void) {
 	char value3 = output.w3 / MAX_RPM * 255;
 	char value4 = output.w4 / MAX_RPM * 255;
 	
-	// wait for some time
-	while (UPDATE_PERIOD) {
-		//remember: 	delayMicrosecs(60*1000); // in ultimate
+	// do every 100000us
+	while (1) {
+		int time1 = getTime();
 		
 		// Get sensor readings
 		sensor = getData();
@@ -153,5 +153,9 @@ void main(void) {
 		char value2 = output.w2 / MAX_RPM * 255;
 		char value3 = output.w3 / MAX_RPM * 255;
 		char value4 = output.w4 / MAX_RPM * 255;
+		
+		int time2 = getTime();
+		int elapsed = time2 - time1;
+		delayMicrosecs(UPDATE_PERIOD - elapsed);
 	}
 }
