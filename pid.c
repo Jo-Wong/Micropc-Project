@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "sensor.h"
+#include "spi.h"
 
 typedef struct {
 	float currValue;
@@ -78,6 +79,9 @@ void main(void) {
 	// Declare Output structure
 	Output output;
 	
+	// Declare array of motor values
+	char motorNumbers[4];
+	
 	// Calculate the current error of our states
 	float zError = zState.currValue - Z_TARGET;
 	float gxError = gxState.currValue - GX_TARGET;
@@ -101,11 +105,15 @@ void main(void) {
 	dynamics.tauX = IXX * (GX_DERV_GAIN * (gxError - gxState.prevError) / UPDATE_PERIOD + GX_PROP_GAIN * gxError);
 	dynamics.tauY = IYY * (GY_DERV_GAIN * (gyError - gyState.prevError) / UPDATE_PERIOD + GY_PROP_GAIN * gyError);
 	dynamics.tauZ = IZZ * (GZ_DERV_GAIN * (gzError - gzState.prevError) / UPDATE_PERIOD + GZ_PROP_GAIN * gzError);
-		
+	
+	// 8-bit values to send to ESC
 	char value1 = output.w1 / MAX_RPM * 255;
 	char value2 = output.w2 / MAX_RPM * 255;
 	char value3 = output.w3 / MAX_RPM * 255;
 	char value4 = output.w4 / MAX_RPM * 255;
+	
+	motorNumbers = {value1, value2, value3, value4};
+	writeMotor(motorNumbers);
 	
 	// do every 100000us
 	while (1) {
@@ -149,10 +157,14 @@ void main(void) {
 		output.w3 = dynamics.thrust * CONSTANT1 + dynamics.tauX * CONSTANT2 - dynamics.tauZ * CONSTANT3;
 		output.w4 = dynamics.thrust * CONSTANT1 + dynamics.tauY * CONSTANT2 + dynamics.tauZ * CONSTANT3;
 	
-		char value1 = output.w1 / MAX_RPM * 255;
-		char value2 = output.w2 / MAX_RPM * 255;
-		char value3 = output.w3 / MAX_RPM * 255;
-		char value4 = output.w4 / MAX_RPM * 255;
+		// 8-bit values to send to ESC
+		value1 = output.w1 / MAX_RPM * 255;
+		value2 = output.w2 / MAX_RPM * 255;
+		value3 = output.w3 / MAX_RPM * 255;
+		value4 = output.w4 / MAX_RPM * 255;
+		
+		motorNumbers = {value1, value2, value3, value4};
+		writeMotor(motorNumbers);
 		
 		int time2 = getTime();
 		int elapsed = time2 - time1;
