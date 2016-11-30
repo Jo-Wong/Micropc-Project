@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "sensor.h"
-#include "spi.h"
+#include "spi.h"                                      
 
 typedef struct {
 	float currValue;
@@ -69,6 +69,7 @@ void main(void) {
 
 	// Declare Sensor structure
 	Sensor sensor;
+	initializeSensor();
 	
 	// Declare Global structure
 	Global globalW;
