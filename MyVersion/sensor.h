@@ -14,6 +14,8 @@ typedef struct {
 	float wx;
 	float wy;
 	float wz;
+	int mx;
+	int my;
 	float alt;
 } Sensor;
 
@@ -30,12 +32,17 @@ void initializeSensor(void) {
 	// power on accelerometer
 	i2cClearBits();
 	i2cSlaveAdr(0b0011001);
-	i2cPowerOn(0b00100000, 0b00010111);
-	
+	i2cPowerOn(0b00100000, 0b00110111);
+
 	// power on gyroscope
 	i2cClearBits();
 	i2cSlaveAdr(0b1101011);
 	i2cPowerOn(0b00100000, 0b00001111);
+
+	// power on magnetometer
+	i2cClearBits();
+	i2cSlaveAdr(0b0011110);
+	i2cPowerOn(0b00000010, 0b00000000);
 }
 
 // ULTRASOUND DATA METHODS
@@ -72,7 +79,8 @@ int convert16to32(char mb, char lb) {
 void getIMU(Sensor *sensor) {
 	char accData[6] = {1,2,3,4,5,6};
 	char gyroData[6] = {7,8,9,10,11,12};
-	
+	char magData[6] = {13,14,15,16,17};
+
 	i2cClearBits();
 	i2cSlaveAdr(0b0011001);
 	while(!i2cRead(0b10101000, accData, 6)){};
@@ -80,16 +88,19 @@ void getIMU(Sensor *sensor) {
 	i2cClearBits();
 	i2cSlaveAdr(0b1101011);
 	while(!i2cRead(0b10101000, gyroData, 6)){};
-	
+
+	i2cClearBits();
+	i2cSlaveAdr(0b0011110);
+	while(!i2cRead(0b00000011, magData, 6)){};
+
 	int rawax = convert12to32(accData[1], accData[0]); 
 	int raway = convert12to32(accData[3], accData[2]); 
 	int rawaz = convert12to32(accData[5], accData[4]); 
 	int rawwx = convert16to32(gyroData[1], gyroData[0]);
 	int rawwy = convert16to32(gyroData[3], gyroData[2]);
 	int rawwz = convert16to32(gyroData[5], gyroData[4]);
-
-	printf("%d\n", rawax);
-	printf("%d\n", rawaz);	
+	int rawmx = convert16to32(magData[0], magData[1]);
+	int rawmy = convert16to32(magData[4], magData[5]);
 
 	sensor->ax = rawax * ACCRES;
 	sensor->ay = raway * ACCRES;
@@ -97,9 +108,8 @@ void getIMU(Sensor *sensor) {
 	sensor->wx = rawwx * GYRORES;
 	sensor->wy = rawwy * GYRORES;
 	sensor->wz = rawwz * GYRORES;
-	
-	printf("%f\n", sensor->ax);
-	printf("%f\n", sensor->az);
+	sensor->mx = rawmx;
+	sensor->my = rawmy;
 	
 	// Remove print statements later
 	/*printf("accData = %d, %d, %d\n", ((accData[1] << 2) | accData[0] >> 6),
